@@ -1,0 +1,29 @@
+# Data and results
+HNH40K_Dataset/
+results/
+weights/
+*.pth
+
+# Local artifacts
+__pycache__/
+*.pyc
+.lock
+pyvenv.cfg
+bin/
+bin
+include/
+include
+lib/
+lib
+lib64/
+lib64
+share/
+share
+
+# Figures and PDFs
+*.pdf
+hnh40k_confusion_matrix.pdf
+
+# Paper snippets (keep local)
+method_section.tex
+table_results.tex
