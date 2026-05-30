@@ -27,13 +27,61 @@ The network is trained using RWFL, a novel objective that maps the HNH40K datase
 
 ```text
 HNH40K_Project/
-├── data/
-│   └── HNH40K_Dataset/        # Your dataset root
-│       ├── hand/              # All positive samples
-│       └── non-hand/          # All negative samples (distractors)
+├── HNH40K_Dataset/            # Your dataset root
+│   ├── hand/                  # All positive samples
+│   └── non-hand/              # All negative samples (distractors)
 ├── dataset.py                 # Folder-based HNH40K loader 
 ├── losses.py                  # Risk-Weighted Focal Loss (RWFL)
 ├── model.py                   # Cascaded Attention Architecture
 ├── train.py                   # Dual-objective training & evaluation loop
-├── main.py                    # Entry point for execution
+├── main.py                    # Entry point for training execution
+├── eval_cm_roc_auc.py         # Exp 1 — Confusion Matrix, ROC/PR curve, AUC, metrics
+├── eval_perturbation.py       # Exp 2 — Perturbation robustness analysis
+├── eval_new_datasets.py       # Generalization and latency benchmarks on OOD datasets
 └── weights/                   # Directory for saved model checkpoints (.pth)
+```
+
+---
+
+## 📊 Evaluation & Benchmarking
+
+Three evaluation scripts are provided to comprehensively assess model performance, robustness, and computational efficiency.
+
+### 1. Discrimination Quality (`eval_cm_roc_auc.py`)
+This script evaluates the discrimination quality of the trained Cascaded Risk-Aware Filter on a validation split. It generates standard metrics, sweeps classification thresholds, and plots diagnostic curves.
+
+* **Usage**:
+  ```bash
+  python eval_cm_roc_auc.py --data_dir ./HNH40K_Dataset --checkpoint ./weights/best_cascaded_model.pth --out_dir ./results/exp1_cm_roc_auc
+  ```
+* **Outputs**:
+  - `confusion_matrix.{pdf, png}`: Validation confusion matrix.
+  - `roc_curve.{pdf, png}`: ROC and Precision-Recall (PR) curves.
+  - `classification_report.txt`: Precision, recall, and F1-score per class.
+  - `metrics.{json, csv}`: Overall metrics (accuracy, macro F1, MCC, FPR, FNR).
+  - `per_threshold.csv`: Metric sweep across thresholds (0.05 to 0.95).
+
+### 2. Perturbation Robustness (`eval_perturbation.py`)
+Analyzes model robustness under common corruption types (ImageNet-C style) across 5 levels of severity. The perturbations include: Gaussian Noise, Gaussian Blur, Brightness, Contrast, JPEG Compression, Occlusion (random patch), and Rotation.
+
+* **Usage**:
+  ```bash
+  python eval_perturbation.py --data_dir ./HNH40K_Dataset --checkpoint ./weights/best_cascaded_model.pth --out_dir ./results/exp2_perturbation
+  ```
+* **Outputs**:
+  - `perturbation_lineplot.{pdf, png}`: Accuracy curve across severity levels.
+  - `perturbation_heatmap.{pdf, png}`: Annotated heatmap showing accuracy per perturbation and severity.
+  - `perturbation_bar.{pdf, png}`: Vulnerability profile displaying accuracy drop at maximum severity.
+  - `perturbation_table.{csv, json}`: Raw metrics for all tested conditions.
+
+### 3. OOD Generalization & Latency Profiling (`eval_new_datasets.py`)
+Evaluates generalization on out-of-distribution (OOD) datasets (e.g., local high-resolution gestures and public low-resolution datasets) while profiling inference latency and early-exit behavior on CPU.
+
+* **Usage**:
+  ```bash
+  python eval_new_datasets.py
+  ```
+* **Outputs**:
+  - Profiles average latencies on CPU for Stage 1 (Early Exit) vs. the Full Path (Stage 1 + Stage 2).
+  - `ood_evaluation_results.json`: Summary stats (samples, recall, early-exit rate, dynamic CPU latency).
+  - `ood_evaluation_results.tex`: Copy-pasteable LaTeX tables for the academic paper summarizing OOD performance and latency profiles.
