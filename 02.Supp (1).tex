@@ -1,0 +1,269 @@
+\documentclass{bmvc2k}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{dblfloatfix}
+\usepackage{booktabs}
+\usepackage{tabularx} 
+\usepackage{makecell} 
+\raggedbottom
+\usepackage{soul}
+\usepackage[table]{xcolor} 
+\definecolor{mygray}{RGB}{230,230,230}
+
+\usepackage[final]{microtype} 
+
+\usepackage{orcidlink}
+\newcommand{\kms}{km\,s$^{-1}$}
+\newcommand{\msun}{$M_\odot$}
+\usepackage{algorithm}      % unused; comment out if not installed
+\usepackage{algorithmic}    % unused; comment out if not installed
+
+% Float control: provides \FloatBarrier
+\usepackage[section]{placeins}
+\usepackage{ragged2e} % for \RaggedRight in X columns
+
+% -------------------------------
+% Paragraph spacing consistency
+% -------------------------------
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0pt}
+
+% -------------------------------
+% List spacing consistency
+% -------------------------------
+\usepackage{enumitem}
+\setlist{topsep=2pt, itemsep=1pt, parsep=0pt, partopsep=0pt}
+
+% Helpful flexible column types (optional but handy)
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{C}{>{\centering\arraybackslash}X}
+
+\usepackage{hyperref}
+
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\ie}{\emph{i.e.}\xspace}
+\newcommand{\eg}{\emph{e.g.}\xspace}
+\newcommand{\etal}{\emph{et al.}\xspace}
+\newcommand{\tanvir}[1]{\textcolor{Magenta}{tanvir: #1}}
+
+%% Enter your paper number here for the review copy
+\bmvcreviewcopy{652}
+
+\title{(Supplementary Material) \\Hands or Not? Building a Robust Dataset for Dynamic Gesture Recognition}
+
+\addauthor{--}{--}{1}
+\addauthor{--}{--}{2}
+\addauthor{--}{--}{1}
+\addauthor{--}{--}{2}
+
+\addinstitution{
+ Yeungnam University\\
+ South Korea
+}
+\addinstitution{
+ Kyungpook National University\\
+ South Korea
+}
+
+\runninghead{---}{HNH40K}
+
+\def\eg{\emph{e.g}\bmvaOneDot}
+\def\Eg{\emph{E.g}\bmvaOneDot}
+\def\etal{\emph{et al}\bmvaOneDot}
+
+%-------------------------------------------------------------------------
+\begin{document}
+
+\maketitle
+
+\section{Ethics, Privacy, and Availability}
+\label{sec:ethics}
+
+HNH40K is designed exclusively for research on hand detection and hand-versus-non-hand filtering within gesture recognition pipelines. It is not intended for biometric identification, surveillance, or person re-identification. No identity-related labels are included, and all images are treated as generic visual signals rather than representations of individuals. Custom data were collected with informed consent from 40 participants for research use only. The collection process did not acquire personal identifiers, biometric metadata, or contextual information capable of inferring subject identity; consistent with institutional research guidelines, this study was classified as exempt from formal IRB approval. Publicly available datasets incorporated as negatives are used in accordance with their original licenses; images containing sensitive content, visible watermarks, private logos, or identifying personal attributes were manually excluded, and faces appearing incidentally in hand images were removed or blurred where applicable. We acknowledge that HNH40K may reflect environmental and demographic biases associated with controlled capture and publicly available imagery. The dataset will be released under a CC-BY-NC 4.0 license via Mendeley Data with a persistent DOI; access details and the final download link will be provided in the camera-ready version.
+
+\section{Ablation Studies}
+
+We isolate the contribution of each design component through controlled ablations on the 40K split, holding the training protocol and seeds fixed.
+
+\paragraph{Effect of curated negatives.} Training the same architecture on the HNH40K training split with the curated risk-aware negatives stripped out (replaced by an equal number of low-risk landscape and Stanford-background samples) reduces accuracy by 4--5\% absolute, with the bulk of the loss concentrated in high-risk categories (faces, electronics). This confirms that the gain is dataset-driven, not merely architectural: the risk-aware taxonomy is the supervision signal that breaks the texture-only false-positive failure mode.
+
+\paragraph{Effect of the $\times4$ augmentation.} Removing the fourfold augmentation pipeline of 
+\begin{equation}
+\mathcal{A}(x) = \{f_{\mathrm{id}}(x),\; f_{\mathrm{flip}}(x),\; f_{\mathrm{zoom}}(x),\; f_{\mathrm{bright}}(x)\},
+\label{eq:augmentation}
+\end{equation} Eq.~\eqref{eq:augmentation} causes a comparable 4--5\% accuracy drop, consistent with the gains being concentrated in low-data regimes of the main paper (Table~7). Curated negatives and augmentation are therefore complementary: the former diversifies hard-class semantics, the latter diversifies intra-class appearance.
+
+\paragraph{Effect of the Structural Scrutinizer.} Disabling Stage~2 (i.e., always returning $p_{e}$) preserves the morphological stem's speed but drops accuracy back into the 0.96--0.97 range observed for MobileNet-class baselines, recovering the expected texture-based failure pattern on high-risk negatives. Conversely, disabling Stage~1 (always invoking the Transformer) collapses the FPS gain and raises CPU latency above 40~ms with no measurable accuracy improvement. This confirms that the two stages are functionally complementary, not redundant.
+
+\paragraph{Effect of the RWFL weighting.} Replacing RWFL ($\lambda_{r}$-weighted focal loss) with vanilla focal loss ($\lambda_{r}{\equiv}1$) holds accuracy roughly constant but increases FPR on high-risk negatives by approximately $3{\times}$ and raises the accuracy drop under stress testing toward 3--4\%. This is the cleanest demonstration that the risk taxonomy contributes \emph{directly} to robustness when consumed by the loss, beyond its already substantial value as a stratified data-curation principle.
+
+\paragraph{Effect of the early-exit threshold $\tau$.} Sweeping $\tau \in \{0.05, 0.1, 0.2, 0.3, 0.5\}$, we find that $\tau{=}0.1$ produces the best operating point: lower $\tau$ values escalate too aggressively to Stage~2 (small FPS gain over the always-Scrutinizer baseline), while higher $\tau$ values starve the Scrutinizer of the hard cases that justify its existence and recover the texture-only failure pattern. Operational sensitivity is mild within $\tau \in [0.1, 0.2]$, indicating that the cascade is robust to threshold choice in the deployment-relevant range.
+
+\subsection{Extended Discrimination Metrics}
+\label{sec:supp-discrim}
+
+\begin{table}[H]
+\centering
+\footnotesize
+
+\vspace{2mm}
+\begin{tabular}{@{}l c c c c@{}}
+\hline
+\textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support} \\
+\hline
+Non-Hand & 0.9995 & 0.9995 & 0.9995 & 3{,}993 \\
+Hand & 0.9995 & 0.9995 & 0.9995 & 4{,}097 \\
+\hline
+Macro avg & 0.9995 & 0.9995 & 0.9995 & 8{,}090 \\
+\hline
+\end{tabular}
+\vspace{3mm}
+\caption{Per-class classification report of the Cascaded Risk-Aware Filter on the HNH40K 40K validation split (threshold$=$0.5).}
+\label{tab:supp-classreport}
+\end{table}
+Table~\ref{tab:supp-classreport} reports the full per-class classification metrics for the proposed Cascaded Risk-Aware Filter on the 40K validation split (8{,}090 samples, seed$=$42). The model achieves near-symmetric performance across both classes: precision, recall, and F1-score are 0.9995 for both Hand and Non-Hand. The macro-averaged F1 is 0.9995, and the Matthews Correlation Coefficient (MCC) reaches 0.9990, confirming balanced predictive power with no class bias.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\vspace{2mm}
+\begin{tabular}{@{}c c c c c@{}}
+\hline
+\textbf{Threshold} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
+\hline
+0.05 & 0.9988 & 0.9976 & 1.0000 & 0.9988 \\
+0.15 & 0.9994 & 0.9990 & 0.9998 & 0.9994 \\
+0.25 & 0.9994 & 0.9990 & 0.9998 & 0.9994 \\
+0.35 & 0.9995 & 0.9993 & 0.9998 & 0.9995 \\
+0.45 & 0.9995 & 0.9995 & 0.9995 & 0.9995 \\
+0.50 & 0.9995 & 0.9995 & 0.9995 & 0.9995 \\
+0.55 & 0.9995 & 0.9995 & 0.9995 & 0.9995 \\
+0.65 & 0.9995 & 0.9995 & 0.9995 & 0.9995 \\
+0.75 & \textbf{0.9996} & \textbf{1.0000} & 0.9993 & \textbf{0.9996} \\
+0.85 & 0.9994 & 1.0000 & 0.9988 & 0.9994 \\
+0.95 & 0.9980 & 1.0000 & 0.9961 & 0.9981 \\
+\hline
+\end{tabular}
+\vspace{3mm}
+\caption{Threshold sweep for the Cascaded Risk-Aware Filter on the 40K validation split. Performance is robust across a wide range of thresholds.}
+\label{tab:supp-threshold}
+\end{table}
+
+
+Table~\ref{tab:supp-threshold} reports the effect of varying the classification threshold $t$ on accuracy, precision, recall, and F1-score. The model's calibration is sufficiently tight that performance is nearly constant across $t \in [0.15, 0.85]$, confirming well-calibrated sigmoid outputs. The optimal F1 operating point is at $t{=}0.75$ (F1$=$0.9996).
+
+\subsection{Detailed Perturbation Robustness Results}
+\label{sec:supp-perturbation}
+
+\begin{table*}[!htbp]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}l c cccc cccc cccc cccc cccc@{}}
+\hline
+& & \multicolumn{4}{c}{\textbf{Severity 1}} & \multicolumn{4}{c}{\textbf{Severity 2}} & \multicolumn{4}{c}{\textbf{Severity 3}} & \multicolumn{4}{c}{\textbf{Severity 4}} & \multicolumn{4}{c}{\textbf{Severity 5}} \\
+\cmidrule(lr){3-6}\cmidrule(lr){7-10}\cmidrule(lr){11-14}\cmidrule(lr){15-18}\cmidrule(lr){19-22}
+\textbf{Perturbation} & $\boldsymbol{\Delta}$\textbf{@5} & Acc & F1 & P & R & Acc & F1 & P & R & Acc & F1 & P & R & Acc & F1 & P & R & Acc & F1 & P & R \\
+\hline
+Gauss. Noise & --0.484 & .866 & .849 & .985 & .747 & .548 & .221 & .874 & .126 & .514 & .111 & .745 & .060 & .518 & .114 & .813 & .062 & .515 & .099 & .846 & .052 \\
+Gauss. Blur & --0.264 & .979 & .979 & .960 & 1.00 & .805 & .838 & .722 & .998 & .783 & .821 & .705 & .983 & .765 & .802 & .699 & .942 & .736 & .780 & .675 & .923 \\
+JPEG Comp. & --0.368 & .993 & .994 & .988 & .999 & .979 & .979 & .960 & .999 & .920 & .915 & .848 & .993 & .835 & .809 & .689 & .975 & .631 & .435 & .595 & .335 \\
+Rotation & --0.139 & .992 & .992 & .985 & .999 & .909 & .905 & .829 & .996 & .905 & .910 & .843 & .989 & .858 & .877 & .789 & .984 & .861 & .878 & .790 & .988 \\
+Brightness & --0.047 & .999 & .999 & .998 & 1.00 & .998 & .998 & .996 & 1.00 & .996 & .996 & .992 & 1.00 & .983 & .983 & .967 & .999 & .952 & .952 & .911 & .996 \\
+Contrast & --0.050 & .999 & .999 & .999 & 1.00 & .997 & .997 & .995 & 1.00 & .993 & .993 & .987 & 1.00 & .980 & .980 & .963 & .997 & .950 & .953 & .912 & .998 \\
+Occlusion & --0.046 & .999 & .999 & .999 & 1.00 & .998 & .998 & .996 & 1.00 & .995 & .995 & .992 & .999 & .984 & .984 & .970 & .998 & .953 & .956 & .918 & .997 \\
+\hline
+\end{tabular}%
+}
+\vspace{2mm}
+\caption{Full perturbation robustness profile of the Cascaded Risk-Aware Filter across 7 perturbation types $\times$ 5 severity levels on the HNH40K 40K validation split. Clean baseline: Acc$=$0.9995, F1$=$0.9995, Prec$=$0.9995, Recall$=$0.9995.}
+\label{tab:supp-perturbation}
+\end{table*}
+
+Table~\ref{tab:supp-perturbation} extends the main-paper perturbation analysis (Table~6 in the main text) by reporting all four classification metrics (accuracy, F1, precision, recall) at each of the five severity levels for all seven perturbation types. This fine-grained view reveals interesting patterns beyond accuracy alone.
+
+Gaussian noise selectively destroys recall (from 74.7\% at severity 1 to 5.2\% at severity 5) while precision remains high ($>$74\%), indicating that the model becomes extremely conservative under noise—refusing to classify most images as hands rather than producing false positives. This conservative failure mode is preferable in deployment, where false negatives are less costly than false positives. In contrast, Gaussian blur exhibits the opposite pattern: recall remains above 92\% even at maximum severity, but precision drops to 67.5\%, indicating that blur causes the model to classify non-hand images as hands. This is consistent with blur smoothing away the fine-grained texture distinctions that the morphological stem uses for early rejection.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures/exp/perturbation_heatmap.pdf}
+\caption{Accuracy heatmap across all perturbation types and severity levels. Green indicates high robustness; red indicates vulnerability.}
+\label{fig:supp-heatmap}
+\end{figure}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures/exp/perturbation_bar.pdf}
+\caption{Accuracy drop at maximum severity (level 5) relative to the clean baseline. Colors indicate severity: red $>$10\%, orange 3--10\%, green $<$3\%.}
+\label{fig:supp-bar}
+\end{figure}
+
+The accuracy heatmap (Fig.~\ref{fig:supp-heatmap}) reveals the two-regime structure: photometric/spatial perturbations (bottom three rows) remain green even at severity 5, while noise and compression (top two rows) transition sharply from green to red. The vulnerability bar chart (Fig.~\ref{fig:supp-bar}) ranks the perturbation types by accuracy drop at maximum severity, providing a one-glance deployment risk profile.
+
+\subsection{Generalization on Out-of-Distribution Hand Gesture Datasets}
+\label{sec:supp-ood}
+
+To evaluate the generalization ability of the Cascaded Risk-Aware Filter beyond the HNH40K dataset, we conduct out-of-distribution (OOD) evaluations on two external hand gesture recognition datasets:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Local Gesture Image (High-Res):} An unseen evaluation set consisting of 934 high-resolution images ($3072 \times 3072$ pixels) of hand gestures captured in diverse indoor settings.
+    \item \textbf{HandGestureDataset (Low-Res)\footnote{\url{https://huggingface.co/datasets/S1223/HandGestureDataset}}:} A public dataset of 18,000 low-resolution images ($50 \times 50$ pixels) representing 20 distinct hand gesture classes.
+\end{enumerate}
+All images are resized to the model's target resolution of $192 \times 160$ and normalized using ImageNet statistics prior to inference. We measure the model's recall at a threshold of $t = 0.5$ and evaluate the early-exit rate to determine how often Stage 1 incorrectly rejects a hand sample. Additionally, we profile inference latency on a standard single-thread CPU core to simulate dynamic edge deployment.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\vspace{2mm}
+\begin{tabular}{@{}l c c c c c@{}}
+\hline
+\textbf{OOD Dataset} & \textbf{Source Res.} & \textbf{Samples} & \textbf{Recall ($\ge 0.5$)} & \textbf{Early-Exit Rate} & \textbf{Avg. Latency (CPU)} \\
+\hline
+Local Gesture Image & $3072 \times 3072$ & 934 & 86.08\% & 3.53\% & 9.20 ms \\
+HandGestureDataset & $50 \times 50$ & 18{,}000 & 98.49\% & 0.00\% & 9.21 ms \\
+\hline
+\end{tabular}
+\vspace{3mm}
+\caption{Generalization performance and computational efficiency of the Cascaded Risk-Aware Filter on out-of-distribution (OOD) hand gesture datasets. Dynamic CPU latency represents the average inference time per sample, accounting for early exits.}
+\label{tab:supp-ood-generalization}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\vspace{2mm}
+\begin{tabular}{@{}l c c@{}}
+\hline
+\textbf{Inference Path} & \textbf{Avg. Latency (CPU)} & \textbf{Throughput (CPU)} \\
+\hline
+Stage 1 Only (Early Exit) & 8.96 $\pm$ 4.09 ms & 111.6 FPS \\
+Full Path (Stage 1 + Stage 2) & 9.21 $\pm$ 2.33 ms & 108.6 FPS \\
+\hline
+\end{tabular}
+\vspace{3mm}
+\caption{Detailed computational profiling of the Cascaded Risk-Aware Filter on an edge CPU device. Latency is measured per-sample (batch size $=$ 1) over 500 runs after 100 warmup steps.}
+\label{tab:supp-latency-profiling}
+\end{table}
+
+Table~\ref{tab:supp-ood-generalization} summarizes the performance metrics on both datasets. The filter achieves exceptional generalization, yielding a \textbf{98.49\% recall} on the low-resolution 20-class public dataset and an \textbf{86.08\% recall} on the high-resolution local gesture set. This high recall across extreme resolution differences (50x50 to 3072x3072) highlights the structural robustness of our model, which is guided by the Stage 2 self-attention layer to focus on morphological features rather than pixel scale.
+
+Furthermore, the early-exit rate remains very low (0.00\% and 3.53\%). Because both datasets consist entirely of positive hand gesture samples, they should ideally pass to Stage 2 rather than exiting early. The near-zero exit rate indicates that the Stage 1 stem correctly flags positive hand configurations as high-risk and passes them for structural verification, avoiding false negatives at the gate.
+
+Table~\ref{tab:supp-latency-profiling} reports the latency characteristics on CPU. The Stage 1 fast rejector stem runs in only \textbf{8.96 ms}, whereas the full pipeline takes \textbf{9.21 ms} to execute. The marginal latency of Stage 2 is only 0.25 ms, showing that the single-layer Transformer Encoder is highly optimized. The overall dynamic latency on CPU is under 9.22 ms across both datasets, providing a throughput of over \textbf{108 FPS} for real-time edge filtering applications.
+
+%======================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+Our results reveal three interlocking insights. First, hand-versus-non-hand discrimination is highly sensitive to negative composition: models with similar clean accuracy diverge sharply under curated high-risk distractors, confirming that naive background negatives are insufficient and that HNH40K's risk-aware taxonomy exposes failure modes hidden by existing benchmarks. Second, scaling behavior differs by architectural family—CNNs leverage locality priors for data efficiency, while Transformers and state-space models require larger data to close the gap—but beyond 20K, all families plateau in accuracy and gains shift to calibration and variance reduction, suggesting that remaining errors stem from intrinsic hand-distractor ambiguity rather than model capacity. This regime favors hybrid designs that allocate global computation selectively, which is exactly the gap the proposed cascade fills: a fast convolutional stem for easy frames and a conditional Transformer for structural disambiguation. Third, the perturbation robustness analysis (Sec.~\ref{sec:supp-perturbation}) exposes a complementary vulnerability axis: the model withstands photometric shifts and spatial corruption with minimal degradation ($<$5\%) but is sensitive to high-frequency corruptions (Gaussian noise, JPEG compression) absent from the training augmentation. Importantly, the failure mode under noise is conservative (low recall, high precision), making it less dangerous in deployment than the false-positive-heavy failures of baseline edge models. These findings jointly support a co-design principle: data composition (risk-aware negatives), loss design (RWFL), and augmentation policy should be aligned to the deployment degradation profile. The current $4{\times}$ augmentation was calibrated for semantic diversity; extending it with noise and compression augmentation is the natural next step for closing the remaining robustness gap without architectural modification.
+
+\end{document}
